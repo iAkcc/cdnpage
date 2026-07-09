@@ -13,12 +13,14 @@
   to = "/.netlify/functions/api"
   status = 200
 
-# SPA fallback: rutas del panel servidas por index.html
+# SPA fallback
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
-  conditions = { Path = ["!/api/*", "!/assets/*"] }
+
+  [redirects.conditions]
+    Path = ["!/api/*", "!/assets/*"]
 
 # Headers de seguridad globales
 [[headers]]
