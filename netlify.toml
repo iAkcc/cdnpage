@@ -7,10 +7,10 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# Proxy de /api/* a las funciones serverless
+# Proxy de /api/* a la función api.js (ruteo interno)
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  to = "/.netlify/functions/api"
   status = 200
 
 # SPA fallback: rutas del panel servidas por index.html
