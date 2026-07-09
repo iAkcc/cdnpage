@@ -7,20 +7,9 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# Proxy de /api/* a la función api.js (ruteo interno)
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api"
-  status = 200
-
-# SPA fallback
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-  [redirects.conditions]
-    Path = ["!/api/*", "!/assets/*"]
+# Los redirects están en public/_redirects (tienen prioridad)
+# /api/* → /.netlify/functions/api
+# /* → /index.html (SPA fallback)
 
 # Headers de seguridad globales
 [[headers]]
