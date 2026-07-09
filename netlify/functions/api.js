@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, ListObjectsV2Command, PutBucketCorsCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { jwtVerify, SignJWT } from 'jose';
 import { z } from 'zod';
@@ -73,6 +73,29 @@ async function createDownloadUrl({ bucket, key, expiresIn }) {
 }
 async function deleteObject({ bucket, key }) { await s3().send(new DeleteObjectCommand({ Bucket: bucket, Key: key })); }
 
+async function setupBucketCors(bucket) {
+  const origin = env('PUBLIC_URL','') || 'http://localhost:5173';
+  try {
+    await s3().send(new PutBucketCorsCommand({
+      Bucket: bucket,
+      CORSConfiguration: {
+        CORSRules: [{
+          AllowedOrigins: [origin, 'http://localhost:5173', 'http://localhost:4173'],
+          AllowedMethods: ['GET', 'PUT', 'POST', 'HEAD'],
+          AllowedHeaders: ['*'],
+          ExposeHeaders: ['ETag', 'x-amz-request-id'],
+          MaxAgeSeconds: 3600
+        }]
+      }
+    }));
+    console.log(`[cors] CORS configurado en bucket ${bucket} para ${origin}`);
+    return true;
+  } catch (e) {
+    console.error(`[cors] No se pudo configurar CORS en ${bucket}:`, e.message);
+    return false;
+  }
+}
+
 // ====== JWT SESSION ======
 const ISSUER = 'cdn-admin', AUDIENCE = 'cdn-admin-user', SESSION_COOKIE = 'cdn_admin_sess';
 function secretKey() { return new TextEncoder().encode(requireEnv('SESSION_SECRET')); }
@@ -99,6 +122,9 @@ async function bootstrapAdmin() {
     const admin = { id: 'u_' + Math.random().toString(36).slice(2,10), email: email.toLowerCase().trim(), role: 'admin', createdAt: new Date().toISOString(), disabled: false };
     await store.setJSON(`user:${admin.email}`, admin); await store.setJSON(`user:id:${admin.id}`, admin);
   } catch (e) { console.error('[bootstrap]', e.message); }
+  // Intento configurar CORS (no crítico si falla)
+  try { await setupBucketCors(BUCKET_PUBLIC()); } catch {}
+  try { await setupBucketCors(BUCKET_PRIVATE()); } catch {}
 }
 async function getUser(email) {
   const e = String(email||'').toLowerCase().trim();
@@ -462,6 +488,12 @@ export async function handler(event, context) {
         if (body.action === 'rebuild-manifest') {
           const manifest = await rebuildManifest();
           return json({ ok: true, manifest }, { headers: corsHeaders });
+        }
+        if (body.action === 'setup-cors') {
+          const ok1 = await setupBucketCors(BUCKET_PUBLIC());
+          const ok2 = await setupBucketCors(BUCKET_PRIVATE());
+          const corsOk = ok1 || ok2;
+          return json({ ok: corsOk, public: ok1, private: ok2, note: corsOk ? 'CORS configurado' : 'Fallo automático — configura manualmente en Backblaze B2 Console (ver documentación)' }, { headers: corsHeaders });
         }
       }
 
