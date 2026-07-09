@@ -1,12 +1,26 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { getStore } from '@netlify/blobs';
+import { getStore as netlifyGetStore } from '@netlify/blobs';
 import { jwtVerify, SignJWT } from 'jose';
 import { z } from 'zod';
 
 // ====== ENV HELPERS ======
 function env(name, fallback) { return process.env[name] ?? fallback; }
 function requireEnv(name) { const v = process.env[name]; if (!v) throw new Error(`Falta: ${name}`); return v; }
+
+// ====== NETLIFY BLOBS (con fallback a config explícita) ======
+function getStore(name) {
+  try {
+    const opts = { name };
+    const siteID = env('NETLIFY_SITE_ID');
+    const token = env('NETLIFY_ACCESS_TOKEN') || env('NETLIFY_BLOB_TOKEN');
+    if (siteID) opts.siteID = siteID;
+    if (token) opts.token = token;
+    return netlifyGetStore(opts);
+  } catch (e) {
+    throw new Error(`Netlify Blobs no disponible. Añade NETLIFY_SITE_ID como variable de entorno en Netlify. Detalle: ${e.message}`);
+  }
+}
 
 // ====== STORAGE CONFIG ======
 function storageConfig() {
