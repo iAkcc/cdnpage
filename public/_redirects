@@ -1,3 +1,4 @@
 /api/*  /.netlify/functions/api  200
-/a/resources/*  https://sdbasee.s3.us-east-005.backblazeb2.com/:splat  200
+/a/resources/*  /api/dl/:splat  200
+/stats.json  /api/stats  200
 /*  /index.html  200

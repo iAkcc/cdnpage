@@ -215,6 +215,22 @@ async function rebuildManifest() {
   await store.setJSON('manifest:public', manifest); return manifest;
 }
 
+// ====== STATS ======
+function statsStore() { return getStore('_stats'); }
+async function trackDownload(slug, version) {
+  const v = await getVersion(slug, version); if (!v) return;
+  v.downloadCount = (v.downloadCount || 0) + 1; await putVersion(v);
+  const stats = await statsStore().get('downloads', { type: 'json' }) || { total: 0, byPlugin: {}, byVersion: {}, lastDownload: null };
+  stats.total = (stats.total || 0) + 1;
+  stats.byPlugin[slug] = (stats.byPlugin[slug] || 0) + 1;
+  const vk = `${slug}@${version}`; stats.byVersion[vk] = (stats.byVersion[vk] || 0) + 1;
+  stats.lastDownload = { slug, version, at: new Date().toISOString() };
+  await statsStore().setJSON('downloads', stats);
+}
+async function getDownloadStats() {
+  return await statsStore().get('downloads', { type: 'json' }) || { total: 0, byPlugin: {}, byVersion: {}, lastDownload: null };
+}
+
 // ====== ZOD SCHEMAS ======
 const PluginInput = z.object({ slug: z.string().min(2).max(80).regex(/^[a-z0-9-]+$/), name: z.string().min(1).max(120), description: z.string().max(2000).optional(), author: z.string().max(120).optional(), homepage: z.string().url().optional().or(z.literal('')), category: z.string().max(60).optional(), visibility: z.enum(['public','private']).default('private'), tags: z.array(z.string().max(40)).max(20).optional(), thumbnail: z.string().max(500).optional() });
 const VersionInput = z.object({ slug: z.string().min(2).max(80), version: z.string().min(1).max(40).regex(/^[\w.+-]+$/), changelog: z.string().max(8000).optional(), gameVersion: z.string().max(40).optional(), fileName: z.string().min(1).max(200), fileSize: z.number().int().min(1), contentType: z.string().max(100), storageBucket: z.enum(['public','private']).default('private'), storageKey: z.string().min(1).max(500), published: z.boolean().default(false), downloadCount: z.number().int().min(0).default(0) });
@@ -453,8 +469,8 @@ export async function handler(event, context) {
         ContentType: contentType,
       }));
 
-      const baseUrl = cfg().publicBaseUrl || env('PUBLIC_URL', '');
-      const dlUrl = (bkt !== 'private' && baseUrl) ? `${baseUrl.replace(/\/+$/,'')}/${key}` : null;
+      const baseUrl = env('PUBLIC_URL', '').replace(/\/+$/, '');
+      const dlUrl = baseUrl ? `${baseUrl}/a/resources/${key}` : null;
       return json({ storageKey: key, storageBucket: bkt || 'private', downloadUrl: dlUrl, fileSize: fileBuffer.length }, { headers: corsHeaders });
     }
 
@@ -479,29 +495,48 @@ export async function handler(event, context) {
 
     // ===== CDN =====
     if (p1 === 'cdn' && method === 'GET') {
-      await requireUser(event);
       const { slug, version: vStr } = q;
 
       if (slug && vStr) {
         const v = await getVersion(slug, vStr); if (!v) return error('No encontrada', 404, { headers: corsHeaders });
-        const pubBase = cfg().publicBaseUrl || env('PUBLIC_URL', '');
-        const url = v.storageBucket === 'private'
-          ? await createDownloadUrl({ bucket: BUCKET_PRIVATE(), key: v.storageKey, expiresIn: 300 })
-          : `${pubBase}/${v.storageKey}`;
+        const base = env('PUBLIC_URL', '').replace(/\/+$/, '');
+        const url = `${base}/a/resources/${v.storageKey}`;
+        await trackDownload(slug, vStr).catch(e => console.error('[track]', e));
         return json({ url, fileName: v.fileName, version: v.version }, { headers: corsHeaders });
       }
       if (slug) {
         const versions = await listVersions(slug); if (!versions.length) return error('Sin versiones', 404, { headers: corsHeaders });
         const v = versions[0];
-        const pubBase = cfg().publicBaseUrl || env('PUBLIC_URL', '');
-        const url = v.storageBucket === 'private'
-          ? await createDownloadUrl({ bucket: BUCKET_PRIVATE(), key: v.storageKey, expiresIn: 300 })
-          : `${pubBase}/${v.storageKey}`;
+        const base = env('PUBLIC_URL', '').replace(/\/+$/, '');
+        const url = `${base}/a/resources/${v.storageKey}`;
+        await trackDownload(slug, v.version).catch(e => console.error('[track]', e));
         return json({ url, fileName: v.fileName, version: v.version }, { headers: corsHeaders });
       }
 
       const manifest = await pStore().get('manifest:public', { type: 'json' });
       return json({ manifest }, { headers: corsHeaders });
+    }
+
+    // ===== STATS =====
+    if (p1 === 'stats' && method === 'GET') {
+      const stats = await getDownloadStats();
+      const plugins = (await listPlugins()).filter(p => p.published);
+      const out = { ...stats, generatedAt: new Date().toISOString(), plugins: plugins.map(p => ({
+        slug: p.slug, name: p.name, downloads: stats.byPlugin[p.slug] || 0, latestVersion: p.latestVersion
+      })) };
+      return json(out, { headers: corsHeaders });
+    }
+
+    // ===== DIRECT DOWNLOAD (302 redirect to signed URL) =====
+    if (p1 === 'dl' && method === 'GET') {
+      const key = q.key || apiPath.replace(/^dl\/?/, '');
+      if (!key) return error('key requerido', 400, { headers: corsHeaders });
+      const bucket = BUCKET_PRIVATE();
+      const url = await createDownloadUrl({ bucket, key, expiresIn: 300 });
+      // Track download: try to extract slug/version from key
+      const parts = key.split('/');
+      if (parts.length >= 3) trackDownload(parts[0], parts[1]).catch(() => {});
+      return { statusCode: 302, headers: { Location: url } };
     }
 
     // ===== ADMIN =====
