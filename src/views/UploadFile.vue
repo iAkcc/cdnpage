@@ -214,10 +214,7 @@ async function upload() {
     }
 
     result.value = upload;
-    const publicBase = import.meta.env.VITE_CDN_URL || '';
-    downloadUrl.value = bucket.value === 'public' && publicBase
-      ? `${publicBase}/${upload.storageKey}`
-      : `🔒 Link firmado generado al copiar`;
+    downloadUrl.value = upload.downloadUrl || `🔒 Link firmado — usa "Copiar link" en la lista de archivos`;
 
     toast.show('✅ Archivo subido exitosamente', 'success');
   } catch (e) {

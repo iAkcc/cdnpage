@@ -453,7 +453,9 @@ export async function handler(event, context) {
         ContentType: contentType,
       }));
 
-      return json({ storageKey: key, storageBucket: bkt || 'private', downloadUrl: null, fileSize: fileBuffer.length }, { headers: corsHeaders });
+      const baseUrl = cfg().publicBaseUrl || env('PUBLIC_URL', '');
+      const dlUrl = (bkt !== 'private' && baseUrl) ? `${baseUrl.replace(/\/+$/,'')}/${key}` : null;
+      return json({ storageKey: key, storageBucket: bkt || 'private', downloadUrl: dlUrl, fileSize: fileBuffer.length }, { headers: corsHeaders });
     }
 
     // ===== CDN =====
@@ -463,17 +465,19 @@ export async function handler(event, context) {
 
       if (slug && vStr) {
         const v = await getVersion(slug, vStr); if (!v) return error('No encontrada', 404, { headers: corsHeaders });
+        const pubBase = cfg().publicBaseUrl || env('PUBLIC_URL', '');
         const url = v.storageBucket === 'private'
           ? await createDownloadUrl({ bucket: BUCKET_PRIVATE(), key: v.storageKey, expiresIn: 300 })
-          : `${cfg().publicBaseUrl}/${v.storageKey}`;
+          : `${pubBase}/${v.storageKey}`;
         return json({ url, fileName: v.fileName, version: v.version }, { headers: corsHeaders });
       }
       if (slug) {
         const versions = await listVersions(slug); if (!versions.length) return error('Sin versiones', 404, { headers: corsHeaders });
         const v = versions[0];
+        const pubBase = cfg().publicBaseUrl || env('PUBLIC_URL', '');
         const url = v.storageBucket === 'private'
           ? await createDownloadUrl({ bucket: BUCKET_PRIVATE(), key: v.storageKey, expiresIn: 300 })
-          : `${cfg().publicBaseUrl}/${v.storageKey}`;
+          : `${pubBase}/${v.storageKey}`;
         return json({ url, fileName: v.fileName, version: v.version }, { headers: corsHeaders });
       }
 
