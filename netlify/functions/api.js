@@ -213,8 +213,9 @@ function parseBody(event) { if (!event.body) return {}; const raw = event.isBase
 export async function handler(event, context) {
   try {
     await bootstrapAdmin();
-    const path = new URL(event.rawUrl || `https://n/${event.path}`).pathname.replace(/^\/api\/?/, '').replace(/\/+$/, '') || '';
-    const [p1, p2] = path.split('/');
+    const rawPath = event.path || event.rawPath || event.rawUrl || '';
+    const apiPath = rawPath.replace(/^\/api\/?/, '').replace(/\/+$/, '') || '';
+    const [p1, p2] = apiPath.split('/');
     const method = event.httpMethod;
     const q = event.queryStringParameters || {};
 
