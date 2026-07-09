@@ -1,6 +1,6 @@
 import { createHandler, parseBody } from '../_lib/handler.js';
 import { json, error } from '../_lib/responses.js';
-import { requireUser, AuthError } from '../_lib/auth.js';
+import { requireUser, requireRole, AuthError } from '../_lib/auth.js';
 import {
   listPlugins, getPlugin, putPlugin, deletePlugin,
   listVersions, rebuildPublicManifest,
