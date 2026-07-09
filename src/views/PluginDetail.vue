@@ -193,22 +193,32 @@ function onDrop(e) {
   if (f) { selectedFile.value = f; newVer.value.fileName = f.name; newVer.value.fileSize = f.size; newVer.value.contentType = f.type || 'application/java-archive'; }
 }
 
+function readFileAsBase64(f) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result.split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(f);
+  });
+}
+
 async function uploadVersion() {
   if (!newVer.value.version || !selectedFile.value) {
     toast.show('Versión y archivo requeridos', 'error'); return;
   }
   uploading.value = true;
   try {
+    const base64 = await readFileAsBase64(selectedFile.value);
     const upload = await store.requestUploadUrl({
       fileName: newVer.value.fileName, contentType: newVer.value.contentType,
       size: newVer.value.fileSize, bucket: newVer.value.storageBucket,
       context: 'plugin-jar', pluginSlug: plugin.value.slug, version: newVer.value.version,
+      file: base64,
     });
-    await fetch(upload.uploadUrl, { method: 'PUT', body: selectedFile.value, headers: { 'Content-Type': newVer.value.contentType } });
     await store.createVersion({
       slug: plugin.value.slug, version: newVer.value.version, changelog: newVer.value.changelog || '',
       gameVersion: newVer.value.gameVersion || '', fileName: newVer.value.fileName,
-      fileSize: newVer.value.fileSize, contentType: newVer.value.contentType,
+      fileSize: upload.fileSize || newVer.value.fileSize, contentType: newVer.value.contentType,
       storageBucket: newVer.value.storageBucket, storageKey: upload.storageKey,
       published: newVer.value.published,
     });

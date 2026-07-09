@@ -9,3 +9,4 @@ dist/
 .vite/
 coverage/
 .env.local
+variables-netlify.txt

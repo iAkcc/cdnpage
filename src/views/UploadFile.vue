@@ -153,6 +153,15 @@ function onFileChange(e) {
   result.value = null;
 }
 
+function readFileAsBase64(f) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result.split(',')[1]);
+    r.onerror = reject;
+    r.readAsDataURL(f);
+  });
+}
+
 function onDrop(e) {
   dragover.value = false;
   const f = e.dataTransfer?.files?.[0];
@@ -171,7 +180,10 @@ async function upload() {
     const slug = pluginSlug.value || projectName.value || 'general';
     const ver = version.value || '1.0.0';
 
-    // 1. Pedir URL de subida firmada
+    // Leer archivo como base64
+    const base64 = await readFileAsBase64(file.value);
+
+    // Subir archivo directo a la API (que lo reenvía a Backblaze)
     const upload = await store.requestUploadUrl({
       fileName: fileName.value,
       contentType: contentType.value,
@@ -180,13 +192,7 @@ async function upload() {
       context: context.value,
       pluginSlug: slug,
       version: ver,
-    });
-
-    // 2. Subir archivo directo a Backblaze
-    await fetch(upload.uploadUrl, {
-      method: 'PUT',
-      body: file.value,
-      headers: { 'Content-Type': contentType.value },
+      file: base64,
     });
 
     // Si es plugin, registrar versión
@@ -198,7 +204,7 @@ async function upload() {
           changelog: '',
           gameVersion: '',
           fileName: fileName.value,
-          fileSize: file.value.size,
+          fileSize: upload.fileSize || file.value.size,
           contentType: contentType.value,
           storageBucket: bucket.value,
           storageKey: upload.storageKey,

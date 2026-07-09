@@ -437,13 +437,23 @@ export async function handler(event, context) {
     if (p1 === 'upload' && method === 'POST') {
       await requireUser(event);
       const body = parseBody(event);
-      const { fileName, contentType, bucket: bkt, pluginSlug, version, context } = body;
+      const { fileName, contentType, bucket: bkt, pluginSlug, version, context, file: base64File, size } = body;
       if (!fileName || !contentType) return error('fileName y contentType requeridos', 400, { headers: corsHeaders });
+      if (!base64File) return error('file (base64) es requerido', 400, { headers: corsHeaders });
+
       const parts = []; if (pluginSlug) parts.push(pluginSlug); if (version) parts.push(version); parts.push(fileName);
       const key = parts.join('/');
       const bucket = bkt === 'public' ? BUCKET_PUBLIC() : BUCKET_PRIVATE();
-      const uploadUrl = await createUploadUrl({ bucket, key, contentType, expiresIn: 3600 });
-      return json({ uploadUrl, storageKey: key, storageBucket: bkt || 'private', downloadUrl: null }, { headers: corsHeaders });
+
+      const fileBuffer = Buffer.from(base64File, 'base64');
+      await s3().send(new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: fileBuffer,
+        ContentType: contentType,
+      }));
+
+      return json({ storageKey: key, storageBucket: bkt || 'private', downloadUrl: null, fileSize: fileBuffer.length }, { headers: corsHeaders });
     }
 
     // ===== CDN =====
