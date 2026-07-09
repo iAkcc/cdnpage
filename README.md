@@ -1,3 +1,6 @@
+<<<<<<< HEAD
+# cdnpage
+=======
 # Panel de Plugins - CDN & Admin
 
 Plataforma privada y segura para administrar plugins, versiones JAR, configuraciones e imágenes usando **Netlify** (serverless + CDN) y **Cloudflare R2** (almacenamiento S3).
@@ -101,3 +104,4 @@ Esto levanta las funciones serverless y el frontend con hot-reload en `localhost
 - Headers de seguridad estrictos (CSP, HSTS, XFO, etc.)
 - URLs firmadas (presigned URLs) para archivos privados con TTL configurable
 - Archivos públicos vs privados segregados en buckets separados
+>>>>>>> bee05a8 (Initial commit: panel admin plugins con Netlify + Cloudflare R2)
