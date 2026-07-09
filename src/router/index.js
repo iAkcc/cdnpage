@@ -15,6 +15,18 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/files',
+    name: 'Files',
+    component: () => import('@/views/FilesList.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/upload',
+    name: 'Upload',
+    component: () => import('@/views/UploadFile.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/plugins',
     name: 'Plugins',
     component: () => import('@/views/PluginsList.vue'),

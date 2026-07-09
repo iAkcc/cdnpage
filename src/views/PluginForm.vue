@@ -1,49 +1,65 @@
 <template>
   <div>
-    <h1 style="margin-bottom: 1rem;">{{ isEdit ? 'Editar' : 'Nuevo' }} Plugin</h1>
-    <form @submit.prevent="save" class="card" style="max-width: 600px;">
-      <div class="mb-2">
-        <label>Slug (ID único, solo minúsculas y guiones)</label>
-        <input v-model="form.slug" :disabled="isEdit" required pattern="^[a-z0-9-]+$" />
-      </div>
+    <div class="page-header">
+      <h1>{{ isEdit ? '✏️ Editar Plugin' : '➕ Nuevo Plugin' }}</h1>
+      <p>{{ isEdit ? 'Actualiza los datos del plugin' : 'Crea un nuevo proyecto para almacenar versiones' }}</p>
+    </div>
+
+    <form @submit.prevent="save" class="card" style="max-width: 680px">
       <div class="grid-2 mb-2">
         <div>
-          <label>Nombre</label>
-          <input v-model="form.name" required />
+          <label>Slug <span class="text-muted">(ID único)</span></label>
+          <input v-model="form.slug" :disabled="isEdit" required pattern="^[a-z0-9-]+$" placeholder="mi-plugin" />
         </div>
         <div>
-          <label>Categoría</label>
-          <input v-model="form.category" />
+          <label>Nombre</label>
+          <input v-model="form.name" required placeholder="Mi Plugin" />
         </div>
       </div>
       <div class="mb-2">
         <label>Descripción</label>
-        <textarea v-model="form.description" rows="3"></textarea>
+        <textarea v-model="form.description" rows="3" placeholder="¿Qué hace este plugin?"></textarea>
       </div>
       <div class="grid-2 mb-2">
         <div>
           <label>Autor</label>
-          <input v-model="form.author" />
+          <input v-model="form.author" placeholder="Tu nombre" />
         </div>
         <div>
-          <label>Visibilidad</label>
-          <select v-model="form.visibility">
-            <option value="private">Privado</option>
-            <option value="public">Público</option>
+          <label>Categoría</label>
+          <select v-model="form.category">
+            <option value="">Sin categoría</option>
+            <option value="utility">Utilidad</option>
+            <option value="gameplay">Gameplay</option>
+            <option value="admin">Administración</option>
+            <option value="chat">Chat</option>
+            <option value="economy">Economía</option>
+            <option value="world">Mundo</option>
+            <option value="bot">Bot</option>
+            <option value="other">Otro</option>
           </select>
         </div>
       </div>
-      <div class="mb-2">
-        <label>URL de página (homepage)</label>
-        <input v-model="form.homepage" type="url" placeholder="https://" />
+      <div class="grid-2 mb-2">
+        <div>
+          <label>Visibilidad</label>
+          <select v-model="form.visibility">
+            <option value="private">🔒 Privado</option>
+            <option value="public">🌍 Público</option>
+          </select>
+        </div>
+        <div>
+          <label>URL (homepage)</label>
+          <input v-model="form.homepage" type="url" placeholder="https://" />
+        </div>
       </div>
       <div class="mb-2">
-        <label>Tags (separados por coma)</label>
+        <label>Tags <span class="text-muted">(separados por coma)</span></label>
         <input v-model="tagsInput" placeholder="minecraft, papel, chat" />
       </div>
       <div class="flex gap-2">
-        <button type="submit" class="btn btn-primary">{{ isEdit ? 'Guardar' : 'Crear' }}</button>
-        <router-link to="/plugins" class="btn">Cancelar</router-link>
+        <button type="submit" class="btn btn-primary">{{ isEdit ? '💾 Guardar cambios' : '✅ Crear plugin' }}</button>
+        <router-link to="/plugins" class="btn btn-ghost">Cancelar</router-link>
       </div>
     </form>
   </div>
@@ -84,14 +100,12 @@ async function save() {
   try {
     if (isEdit.value) {
       await store.update({ ...form.value });
-      toast.show('Plugin actualizado', 'success');
+      toast.show('✅ Plugin actualizado', 'success');
     } else {
       await store.create({ ...form.value });
-      toast.show('Plugin creado', 'success');
+      toast.show('✅ Plugin creado', 'success');
     }
     router.push('/plugins');
-  } catch (e) {
-    toast.show(e.message || 'Error', 'error');
-  }
+  } catch (e) { toast.show(e.message || 'Error', 'error'); }
 }
 </script>

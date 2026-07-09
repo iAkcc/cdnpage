@@ -1,51 +1,59 @@
 <template>
   <div>
-    <div class="flex-between mb-2">
-      <h1>Usuarios</h1>
-      <button class="btn btn-sm btn-primary" @click="showForm = !showForm">+ Invitar</button>
+    <div class="page-header">
+      <div class="flex-between flex-wrap gap-2">
+        <div>
+          <h1>👥 Usuarios</h1>
+          <p>Administra quién puede acceder al panel</p>
+        </div>
+        <button class="btn btn-primary" @click="showForm = !showForm">➕ Invitar usuario</button>
+      </div>
     </div>
 
-    <div v-if="showForm" class="card mb-2" style="max-width: 400px;">
-      <h3 class="mb-1">Nuevo usuario</h3>
+    <div v-if="showForm" class="card card-accent mb-3" style="max-width: 450px">
+      <h3 class="mb-2">Invitar nuevo usuario</h3>
       <div class="mb-2">
         <label>Email</label>
-        <input v-model="newEmail" type="email" />
+        <input v-model="newEmail" type="email" placeholder="usuario@email.com" />
       </div>
       <div class="mb-2">
         <label>Rol</label>
         <select v-model="newRole">
-          <option value="editor">Editor</option>
-          <option value="admin">Admin</option>
+          <option value="editor">✏️ Editor</option>
+          <option value="admin">🔧 Admin</option>
         </select>
       </div>
-      <button class="btn btn-primary" @click="createUser">Crear</button>
+      <button class="btn btn-primary w-full" @click="createUser">✅ Invitar</button>
     </div>
 
-    <table>
-      <thead>
-        <tr><th>Email</th><th>Rol</th><th>Estado</th><th>Creado</th><th>Acciones</th></tr>
-      </thead>
-      <tbody>
-        <tr v-for="u in users" :key="u.id">
-          <td>{{ u.email }}</td>
-          <td>
-            <select :value="u.role" @change="updateRole(u, $event.target.value)" style="width:auto">
-              <option value="editor">Editor</option>
-              <option value="admin">Admin</option>
-            </select>
-          </td>
-          <td>
-            <button class="btn btn-sm" @click="toggleDisabled(u)">
-              {{ u.disabled ? 'Desbloquear' : 'Bloquear' }}
-            </button>
-          </td>
-          <td style="color: var(--text-muted); font-size: .85rem;">{{ formatDate(u.createdAt) }}</td>
-          <td>
-            <button class="btn btn-sm btn-danger" @click="remove(u)">Eliminar</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table>
+        <thead>
+          <tr><th>Email</th><th>Rol</th><th>Estado</th><th>Creado</th><th>Acciones</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="u in users" :key="u.id">
+            <td><strong>{{ u.email }}</strong></td>
+            <td>
+              <select :value="u.role" @change="updateRole(u, $event.target.value)" class="btn-sm" style="width:auto">
+                <option value="editor">✏️ Editor</option>
+                <option value="admin">🔧 Admin</option>
+              </select>
+            </td>
+            <td>
+              <span :class="['badge', u.disabled ? 'badge-red' : 'badge-green']">{{ u.disabled ? '🔒 Bloqueado' : '✅ Activo' }}</span>
+            </td>
+            <td class="text-muted text-sm">{{ formatDate(u.createdAt) }}</td>
+            <td>
+              <div class="flex gap-1">
+                <button class="btn btn-xs" @click="toggleDisabled(u)">{{ u.disabled ? '🔓' : '🔒' }}</button>
+                <button class="btn btn-xs btn-danger" @click="remove(u)">🗑️</button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>
 
@@ -64,59 +72,31 @@ const newRole = ref('editor');
 onMounted(load);
 
 async function load() {
-  try {
-    users.value = await auth.fetchUsers();
-  } catch (e) {
-    toast.show(e.message, 'error');
-  }
+  try { users.value = await auth.fetchUsers(); } catch (e) { toast.show(e.message, 'error'); }
 }
 
 async function createUser() {
   if (!newEmail.value) return;
   try {
     await auth.createUser(newEmail.value, newRole.value);
-    toast.show('Usuario creado', 'success');
-    newEmail.value = '';
-    showForm.value = false;
+    toast.show('✅ Usuario invitado', 'success');
+    newEmail.value = ''; showForm.value = false;
     await load();
-  } catch (e) {
-    toast.show(e.message, 'error');
-  }
+  } catch (e) { toast.show(e.message, 'error'); }
 }
 
 async function updateRole(u, role) {
-  try {
-    await auth.updateUser(u.email, { role });
-    u.role = role;
-    toast.show('Rol actualizado', 'success');
-  } catch (e) {
-    toast.show(e.message, 'error');
-  }
+  try { await auth.updateUser(u.email, { role }); u.role = role; toast.show('✅ Rol actualizado', 'success'); } catch (e) { toast.show(e.message, 'error'); }
 }
 
 async function toggleDisabled(u) {
-  try {
-    await auth.updateUser(u.email, { disabled: !u.disabled });
-    u.disabled = !u.disabled;
-    toast.show(u.disabled ? 'Bloqueado' : 'Desbloqueado', 'success');
-  } catch (e) {
-    toast.show(e.message, 'error');
-  }
+  try { await auth.updateUser(u.email, { disabled: !u.disabled }); u.disabled = !u.disabled; toast.show(u.disabled ? '🔒 Bloqueado' : '🔓 Desbloqueado', 'success'); } catch (e) { toast.show(e.message, 'error'); }
 }
 
 async function remove(u) {
   if (!confirm(`Eliminar a ${u.email}?`)) return;
-  try {
-    await auth.deleteUser(u.email);
-    users.value = users.value.filter(x => x.email !== u.email);
-    toast.show('Usuario eliminado', 'success');
-  } catch (e) {
-    toast.show(e.message, 'error');
-  }
+  try { await auth.deleteUser(u.email); users.value = users.value.filter(x => x.email !== u.email); toast.show('🗑️ Eliminado', 'success'); } catch (e) { toast.show(e.message, 'error'); }
 }
 
-function formatDate(d) {
-  if (!d) return '-';
-  return new Date(d).toLocaleDateString();
-}
+function formatDate(d) { if (!d) return '-'; return new Date(d).toLocaleDateString(); }
 </script>
