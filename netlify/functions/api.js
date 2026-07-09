@@ -197,7 +197,7 @@ const VersionInput = z.object({ slug: z.string().min(2).max(80), version: z.stri
 async function sendMagicLink({ to, link }) {
   const key = env('RESEND_API_KEY') || env('POSTMARK_SERVER_TOKEN'); const provider = env('RESEND_API_KEY') ? 'resend' : 'postmark';
   if (!key) throw new Error('Sin API key de email');
-  const from = env('EMAIL_FROM') || requireEnv('ADMIN_EMAIL');
+  const from = env('EMAIL_FROM') || 'onboarding@resend.dev';
   const html = `<h2>Acceso al panel</h2><p>Haz clic para iniciar sesión (expira 15 min):</p><p><a href="${link}" style="display:inline-block;padding:12px 24px;background:#111;color:#fff;border-radius:6px;text-decoration:none">Iniciar sesión</a></p><p style="color:#555;font-size:13px">Si no pediste esto, ignora.</p>`;
   if (provider === 'resend') {
     const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ from, to, subject: 'Tu enlace de acceso', html }) });
