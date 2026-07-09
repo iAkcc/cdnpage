@@ -44,7 +44,7 @@ function storageConfig() {
     secretAccessKey: requireEnv('R2_SECRET_ACCESS_KEY'),
     bucketPublic: env('R2_BUCKET_PUBLIC', 'cdn-public'),
     bucketPrivate: env('R2_BUCKET_PRIVATE', 'cdn-private'),
-    publicBaseUrl: env('R2_PUBLIC_BASE_URL', ''),
+    publicBaseUrl: env('R2_PUBLIC_BASE_URL', (env('PUBLIC_URL','') + '/a/resources').replace(/\/+$/,'')),
     signedUrlTtl: Number(env('R2_SIGNED_URL_TTL', 900)),
   };
 }
@@ -456,6 +456,25 @@ export async function handler(event, context) {
       const baseUrl = cfg().publicBaseUrl || env('PUBLIC_URL', '');
       const dlUrl = (bkt !== 'private' && baseUrl) ? `${baseUrl.replace(/\/+$/,'')}/${key}` : null;
       return json({ storageKey: key, storageBucket: bkt || 'private', downloadUrl: dlUrl, fileSize: fileBuffer.length }, { headers: corsHeaders });
+    }
+
+    if (p1 === 'upload' && method === 'DELETE') {
+      await requireRole(event, 'admin');
+      const { key, bucket: bkt } = q;
+      if (!key) return error('key requerido (query param)', 400, { headers: corsHeaders });
+      const bucket = bkt === 'public' ? BUCKET_PUBLIC() : BUCKET_PRIVATE();
+      await deleteObject({ bucket, key });
+      return json({ ok: true }, { headers: corsHeaders });
+    }
+
+    // ===== FILES (admin) =====
+    if (p1 === 'files' && method === 'GET') {
+      await requireRole(event, 'admin');
+      const { prefix, bucket: bkt } = q;
+      const bucket = bkt === 'public' ? BUCKET_PUBLIC() : BUCKET_PRIVATE();
+      const r = await s3().send(new ListObjectsV2Command({ Bucket: bucket, Prefix: prefix || '', MaxKeys: 200 }));
+      const items = (r.Contents || []).map(c => ({ key: c.Key, size: c.Size, lastModified: c.LastModified?.toISOString() }));
+      return json({ items, bucket, prefix: prefix || '' }, { headers: corsHeaders });
     }
 
     // ===== CDN =====
