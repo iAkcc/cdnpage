@@ -17,7 +17,7 @@ export const usePluginsStore = defineStore('plugins', () => {
   }
 
   async function getBySlug(slug) {
-    const data = await api.get(`/plugins/${slug}`);
+    const data = await api.get(`/plugins?slug=${slug}`);
     return data;
   }
 
@@ -34,7 +34,7 @@ export const usePluginsStore = defineStore('plugins', () => {
   }
 
   async function patch(slug, data) {
-    const res = await api.patch(`/plugins/${slug}`, data);
+    const res = await api.patch(`/plugins?slug=${slug}`, data);
     await fetchAll();
     return res.plugin;
   }
@@ -56,12 +56,12 @@ export const usePluginsStore = defineStore('plugins', () => {
   }
 
   async function patchVersion(slug, version, data) {
-    const res = await api.patch(`/versions/${slug}/${version}`, data);
+    const res = await api.patch(`/versions?slug=${slug}&version=${encodeURIComponent(version)}`, data);
     return res.version;
   }
 
   async function deleteVersion(slug, version) {
-    await api.del(`/versions/${slug}/${version}`);
+    await api.del(`/versions?slug=${slug}&version=${encodeURIComponent(version)}`);
   }
 
   async function getCDNUrl(slug, version) {

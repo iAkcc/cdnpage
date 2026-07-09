@@ -7,6 +7,12 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# Proxy de /api/* a las funciones serverless
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
 # SPA fallback: rutas del panel servidas por index.html
 [[redirects]]
   from = "/*"
@@ -23,7 +29,7 @@
     Referrer-Policy = "no-referrer"
     Permissions-Policy = "geolocation=(), microphone=(), camera=()"
     Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
-    Content-Security-Policy = "default-src 'self'; img-src 'self' data: https://cdn.r2.dev; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.netlify.app; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+    Content-Security-Policy = "default-src 'self'; img-src 'self' data: https://*.backblazeb2.com; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
 
 # Cache de assets estáticos
 [[headers]]

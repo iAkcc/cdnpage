@@ -2,13 +2,15 @@ import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, Head
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { requireEnv, env } from './env.js';
 
-// Cliente S3 compatible con Cloudflare R2
+// Cliente S3 compatible (Backblaze B2, Cloudflare R2, etc.)
 let client;
 function r2Client() {
   if (client) return client;
+  const endpoint = requireEnv('R2_ENDPOINT');
+  const region = process.env.R2_REGION || endpoint.replace(/^https?:\/\/s3\.([^.]+)\..*$/, '$1') || 'auto';
   client = new S3Client({
-    region: 'auto',
-    endpoint: requireEnv('R2_ENDPOINT'),
+    region,
+    endpoint,
     credentials: {
       accessKeyId: requireEnv('R2_ACCESS_KEY_ID'),
       secretAccessKey: requireEnv('R2_SECRET_ACCESS_KEY'),
@@ -21,10 +23,10 @@ function r2Client() {
 export const BUCKET_PUBLIC = () => process.env.R2_BUCKET_PUBLIC || 'cdn-public';
 export const BUCKET_PRIVATE = () => process.env.R2_BUCKET_PRIVATE || 'cdn-private';
 
-// Genera URL pública (solo para el bucket público)
+// Genera URL pública (solo si hay base URL configurada)
 export function publicUrlFor(key) {
   const base = (process.env.R2_PUBLIC_BASE_URL || '').replace(/\/$/, '');
-  if (!base) throw new Error('R2_PUBLIC_BASE_URL no configurado');
+  if (!base) return null;
   return `${base}/${encodeKey(key)}`;
 }
 
