@@ -1,6 +1,5 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { getStore as netlifyGetStore } from '@netlify/blobs';
 import { jwtVerify, SignJWT } from 'jose';
 import { z } from 'zod';
 
@@ -8,18 +7,31 @@ import { z } from 'zod';
 function env(name, fallback) { return process.env[name] ?? fallback; }
 function requireEnv(name) { const v = process.env[name]; if (!v) throw new Error(`Falta: ${name}`); return v; }
 
-// ====== NETLIFY BLOBS (con fallback a config explícita) ======
-function getStore(name) {
-  try {
-    const opts = { name };
-    const siteID = env('NETLIFY_SITE_ID');
-    const token = env('NETLIFY_ACCESS_TOKEN') || env('NETLIFY_BLOB_TOKEN');
-    if (siteID) opts.siteID = siteID;
-    if (token) opts.token = token;
-    return netlifyGetStore(opts);
-  } catch (e) {
-    throw new Error(`Netlify Blobs no disponible. Añade NETLIFY_SITE_ID como variable de entorno en Netlify. Detalle: ${e.message}`);
-  }
+// ====== META STORE (S3-based KV, reemplaza Netlify Blobs) ======
+const META_PREFIX = '_meta/';
+function metaBucket() { return cfg().bucketPrivate; }
+async function s3GetObject(key) {
+  try { const r = await s3().send(new GetObjectCommand({ Bucket: metaBucket(), Key: META_PREFIX + key })); return JSON.parse(await r.Body.transformToString()); }
+  catch (e) { if (e.name==='NoSuchKey') return null; throw e; }
+}
+async function s3PutObject(key, data) { await s3().send(new PutObjectCommand({ Bucket: metaBucket(), Key: META_PREFIX + key, Body: JSON.stringify(data), ContentType: 'application/json' })); }
+async function s3DelObject(key) { try { await s3().send(new DeleteObjectCommand({ Bucket: metaBucket(), Key: META_PREFIX + key })); } catch {} }
+async function s3ListKeys(prefix) {
+  const r = await s3().send(new ListObjectsV2Command({ Bucket: metaBucket(), Prefix: META_PREFIX + prefix }));
+  return (r.Contents||[]).map(c => c.Key.replace(META_PREFIX, ''));
+}
+function createStore(storeName) {
+  const pfx = storeName + '/';
+  return {
+    async get(key, opts) { const d = await s3GetObject(pfx + key); if (!d) return null; if (opts?.type==='json') return d; return JSON.stringify(d); },
+    async set(key, raw) { await s3PutObject(pfx + key, typeof raw==='string' ? JSON.parse(raw) : raw); },
+    async setJSON(key, data) { await s3PutObject(pfx + key, data); },
+    async delete(key) { await s3DelObject(pfx + key); },
+    async list(opts={}) {
+      const keys = await s3ListKeys(pfx + (opts.prefix||''));
+      return { blobs: keys.map(k => ({ key: k.replace(pfx, '') })) };
+    },
+  };
 }
 
 // ====== STORAGE CONFIG ======
