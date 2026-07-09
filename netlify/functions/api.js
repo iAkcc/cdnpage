@@ -20,7 +20,7 @@ async function s3ListKeys(prefix) {
   const r = await s3().send(new ListObjectsV2Command({ Bucket: metaBucket(), Prefix: META_PREFIX + prefix }));
   return (r.Contents||[]).map(c => c.Key.replace(META_PREFIX, ''));
 }
-function createStore(storeName) {
+function getStore(storeName) {
   const pfx = storeName + '/';
   return {
     async get(key, opts) { const d = await s3GetObject(pfx + key); if (!d) return null; if (opts?.type==='json') return d; return JSON.stringify(d); },
